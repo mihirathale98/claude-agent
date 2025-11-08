@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Dict, Optional
 import uuid
 from datetime import datetime, timezone
@@ -32,39 +32,36 @@ sdk_session_map: Dict[str, str] = {}
 
 # Pydantic models
 class Message(BaseModel):
-    role: str = Field(..., description="Role of the message sender (user or assistant)")
-    content: str = Field(..., description="Content of the message")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "role": "user",
                 "content": "What is the timeoff schedule for nwaters?"
             }
         }
+    )
+
+    role: str = Field(..., description="Role of the message sender (user or assistant)")
+    content: str = Field(..., description="Content of the message")
 
 
 class ChatRequest(BaseModel):
-    message: str = Field(..., description="User message to send to the agent")
-    session_id: Optional[str] = Field(None, description="Session ID for conversation continuity. If not provided, a new session will be created by the SDK.")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "message": "What is the timeoff schedule for nwaters?",
                 "session_id": "550e8400-e29b-41d4-a716-446655440000"
             }
         }
+    )
+
+    message: str = Field(..., description="User message to send to the agent")
+    session_id: Optional[str] = Field(None, description="Session ID for conversation continuity. If not provided, a new session will be created by the SDK.")
 
 
 class ChatResponse(BaseModel):
-    session_id: str = Field(..., description="Session ID for this conversation (managed by Claude SDK)")
-    content: str = Field(..., description="Agent's response")
-    timestamp: str = Field(..., description="Timestamp of the response")
-    is_new_session: bool = Field(..., description="Whether this is a new session or resumed")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "session_id": "claude-sdk-session-123",
                 "content": "Based on the timeoff schedule, nwaters has the following timeoff date: 2025-01-05.",
@@ -72,6 +69,12 @@ class ChatResponse(BaseModel):
                 "is_new_session": False
             }
         }
+    )
+
+    session_id: str = Field(..., description="Session ID for this conversation (managed by Claude SDK)")
+    content: str = Field(..., description="Agent's response")
+    timestamp: str = Field(..., description="Timestamp of the response")
+    is_new_session: bool = Field(..., description="Whether this is a new session or resumed")
 
 
 class SessionResponse(BaseModel):
