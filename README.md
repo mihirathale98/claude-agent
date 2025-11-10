@@ -75,6 +75,7 @@ Optional LLM observability for tracing agent interactions, tool calls, and perfo
    ```env
    LANGFUSE_PUBLIC_KEY=pk-lf-your-key
    LANGFUSE_SECRET_KEY=sk-lf-your-secret
+   LANGFUSE_HOST=your-langfuse-server-url
    ```
 4. Restart the server - traces appear automatically at https://cloud.langfuse.com
 
