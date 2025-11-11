@@ -146,40 +146,42 @@ async def chat(request: ChatRequest):
     - If no session_id, the SDK creates a new session and returns the session ID
     - The SDK maintains full conversation history internally
     """
-    # Get SDK session ID (either from request or create new)
-    sdk_session_id = request.session_id
+    # Get or create user session ID
+    user_session_id = request.session_id or str(uuid.uuid4())
 
-    # Create API session for tracking
-    api_session_id = request.session_id or str(uuid.uuid4())
-
-    if api_session_id not in sessions:
-        sessions[api_session_id] = []
+    # Initialize session tracking if new user session
+    if user_session_id not in sessions:
+        sessions[user_session_id] = []
 
     # Add user message to our tracking
-    sessions[api_session_id].append({
+    sessions[user_session_id].append({
         "role": "user",
         "content": request.message
     })
 
     try:
-        # Get agent response with SDK session management
-        with using_session(sdk_session_id):
-            result = await get_claude_agent_response(
-                message=request.message,
-                session_id=sdk_session_id  # SDK handles resume if provided
-            )
+        # Get the Claude SDK session ID from our mapping (if it exists)
+        claude_session_id = sdk_session_map.get(user_session_id)
 
-        # Update our SDK session mapping
-        sdk_session_map[api_session_id] = result["session_id"]
+        # Get agent response with SDK session management
+        result = await get_claude_agent_response(
+            message=request.message,
+            session_id=claude_session_id  # SDK handles resume if provided, creates new if None
+        )
+
+        # Update our mapping: user_session_id -> claude_session_id
+        sdk_session_map[user_session_id] = result["session_id"]
 
         # Add assistant response to our tracking
-        sessions[api_session_id].append({
+        sessions[user_session_id].append({
             "role": "assistant",
             "content": result["content"]
         })
 
+        print(f"Session mapping: user={user_session_id} -> claude={result['session_id']}")
+
         return ChatResponse(
-            session_id=result["session_id"],  # Return SDK session ID
+            session_id=user_session_id,  # Return user's session ID
             content=result["content"],
             timestamp=datetime.now(timezone.utc).isoformat(),
             is_new_session=result["is_new_session"]
