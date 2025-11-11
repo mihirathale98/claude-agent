@@ -164,10 +164,11 @@ async def chat(request: ChatRequest):
         claude_session_id = sdk_session_map.get(user_session_id)
 
         # Get agent response with SDK session management
-        result = await get_claude_agent_response(
-            message=request.message,
-            session_id=claude_session_id  # SDK handles resume if provided, creates new if None
-        )
+        with using_session(user_session_id):
+            result = await get_claude_agent_response(
+                message=request.message,
+                session_id=claude_session_id
+            )
 
         # Update our mapping: user_session_id -> claude_session_id
         sdk_session_map[user_session_id] = result["session_id"]
