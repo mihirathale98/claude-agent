@@ -1,4 +1,5 @@
 # Setup Claude-Agent tracer:
+from dotenv import load_dotenv; load_dotenv()
 import base64
 import os
 from openinference.instrumentation import using_session
@@ -10,6 +11,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 # Set environment variables for LangChain
 os.environ["LANGSMITH_OTEL_ENABLED"] = "true"
 os.environ["LANGSMITH_TRACING"] = "true"
+os.environ["LANGSMITH_OTEL_ONLY"] = "true"
 
 lf_base_url = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com").rstrip("/")
 OTEL_ENDPOINT = f"{lf_base_url}/api/public/otel/v1/traces"

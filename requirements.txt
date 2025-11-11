@@ -6,3 +6,5 @@ pydantic
 anyio
 langsmith
 openinference-instrumentation
+opentelemetry-sdk
+opentelemetry-exporter-otlp
