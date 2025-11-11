@@ -148,51 +148,9 @@ def test_chat_api(base_url: str = "http://localhost:8080"):
     print("=" * 60)
 
 
-def test_conversation_endpoint(base_url: str = "http://localhost:8080"):
-    """Test the conversation history endpoint."""
-    print(f"\n\nTesting Conversation Endpoint")
-    print("=" * 60)
-
-    print("\n1. Send Conversation History")
-    print("-" * 60)
-
-    headers = {"Content-Type": "application/json"}
-
-    conversation_data = {
-        "conversation_history": [
-            {"role": "user", "content": "What is the assignment ID for user nwaters?"},
-            {"role": "assistant", "content": "The assignment ID for user nwaters is 15778303."},
-            {"role": "user", "content": "What is their timeoff schedule?"}
-        ]
-    }
-
-    try:
-        response = requests.post(
-            f"{base_url}/chat/conversation",
-            headers=headers,
-            json=conversation_data,
-            timeout=60
-        )
-
-        print(f"Status: {response.status_code}")
-
-        if response.status_code == 200:
-            data = response.json()
-            print(f"Response: {data.get('content', '')[:200]}...")
-            print(f"Session ID: {data.get('session_id')}")
-            print("✅ PASSED")
-        else:
-            print(f"❌ FAILED - Status {response.status_code}")
-            print(f"Response: {response.text}")
-
-    except Exception as e:
-        print(f"❌ Error: {e}")
-
-
 if __name__ == "__main__":
     # Parse command line arguments
     base_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080"
 
     # Run tests
     test_chat_api(base_url)
-    test_conversation_endpoint(base_url)

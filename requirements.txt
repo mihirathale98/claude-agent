@@ -4,4 +4,7 @@ fastapi
 uvicorn[standard]
 pydantic
 anyio
-langfuse>=3.0.0
+langsmith
+openinference-instrumentation
+opentelemetry-sdk
+opentelemetry-exporter-otlp

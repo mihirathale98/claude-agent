@@ -1,3 +1,45 @@
+# Setup Claude-Agent tracer:
+from dotenv import load_dotenv; load_dotenv()
+import base64
+import os
+from openinference.instrumentation import using_session
+from opentelemetry import trace, context as otel_context
+from opentelemetry.sdk.trace import TracerProvider, SpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+# Set environment variables for LangChain
+os.environ["LANGSMITH_OTEL_ENABLED"] = "true"
+os.environ["LANGSMITH_TRACING"] = "true"
+os.environ["LANGSMITH_OTEL_ONLY"] = "true"
+
+lf_base_url = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com").rstrip("/")
+OTEL_ENDPOINT = f"{lf_base_url}/api/public/otel/v1/traces"
+
+lf_public = os.getenv("LANGFUSE_PUBLIC_KEY")
+lf_secret = os.getenv("LANGFUSE_SECRET_KEY")
+auth_b64 = base64.b64encode(f"{lf_public}:{lf_secret}".encode("utf-8")).decode("ascii")
+HEADERS = {"Authorization": f"Basic {auth_b64}"}
+
+# Custom span processor to map session id to langfuse
+class LangsmithSessionToLangfuseProcessor(SpanProcessor):
+    def on_start(self, span, parent_context=None):
+        ctx = parent_context or otel_context.get_current()
+        sess = ctx.get("session.id")
+        if sess: span.set_attribute("session.id", sess)
+
+# Configure the OTLP exporter for your custom endpoint
+provider = TracerProvider()
+otlp_exporter = OTLPSpanExporter(endpoint=OTEL_ENDPOINT, headers=HEADERS)
+processor = BatchSpanProcessor(otlp_exporter)
+provider.add_span_processor(LangsmithSessionToLangfuseProcessor())
+provider.add_span_processor(processor)
+trace.set_tracer_provider(provider)
+
+from langsmith.integrations.claude_agent_sdk import configure_claude_agent_sdk
+configure_claude_agent_sdk()
+# ===
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, ConfigDict
@@ -121,10 +163,11 @@ async def chat(request: ChatRequest):
 
     try:
         # Get agent response with SDK session management
-        result = await get_claude_agent_response(
-            message=request.message,
-            session_id=sdk_session_id  # SDK handles resume if provided
-        )
+        with using_session(sdk_session_id):
+            result = await get_claude_agent_response(
+                message=request.message,
+                session_id=sdk_session_id  # SDK handles resume if provided
+            )
 
         # Update our SDK session mapping
         sdk_session_map[api_session_id] = result["session_id"]
