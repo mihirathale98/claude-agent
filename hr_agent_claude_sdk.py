@@ -8,11 +8,11 @@ This module provides an HR agent that can:
 """
 
 from typing import Optional, Dict, Any
-import uuid
 
 from claude_agent_sdk import (
     ClaudeAgentOptions,
     ClaudeSDKClient,
+    ResultMessage,
     create_sdk_mcp_server,
     AssistantMessage,
     TextBlock,
@@ -25,8 +25,8 @@ from tools import (
 )
 
 
-async def create_hr_agent():
-    """Create and return an HR agent client."""
+def create_hr_agent_options(session_id: Optional[str] = None):
+    """Create and return HR agent options."""
     # Create the HR tools server
     hr_tools = create_sdk_mcp_server(
         name="hr-tools",
@@ -50,44 +50,54 @@ async def create_hr_agent():
         system_prompt="""You are an HR Agent that can answer questions related to employee information, timeoff schedules, and direct reports.
 Use the tools provided to answer the user's questions.
 If you do not have enough information to answer the question, say so.
-If you need more information, ask follow up questions."""
+If you need more information, ask follow up questions.""",
+        resume=session_id if session_id else None,
     )
 
-    return ClaudeSDKClient(options=options)
+    return options
+
 
 
 async def get_claude_agent_response(
     message: str,
     session_id: Optional[str] = None,
-    user_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Get a response from the Claude HR agent
 
     Args:
         message: The user message to send
-        session_id: Optional session ID for conversation continuity and tracing
-        user_id: Optional user ID for tracing attribution
+        session_id: Optional session ID for conversation continuity
+                   - If None: creates a new session
+                   - If provided: resumes the existing session with full conversation history
 
     Returns:
         Dict with session_id, content, and is_new_session
     """
-    is_new_session = session_id is None
-    actual_session_id = session_id or str(uuid.uuid4())
+    # Create agent options with optional session resumption
+    options = create_hr_agent_options(session_id=session_id)
 
-    # Metadata about available tools and MCP servers
-    async with await create_hr_agent() as client:
+    # Track session info
+    is_new_session = session_id is None
+    response_text = ""
+
+    # Use ClaudeSDKClient to interact with Claude
+    # The client automatically maintains conversation history within the session
+    async with ClaudeSDKClient(options=options) as client:
+        # Send the user message
         await client.query(message)
 
-        response_text = ""
+        # Collect text from assistant messages
         async for msg in client.receive_response():
             if isinstance(msg, AssistantMessage):
                 for block in msg.content:
                     if isinstance(block, TextBlock):
                         response_text += block.text
+            elif isinstance(msg, ResultMessage):
+                actual_session_id = msg.session_id
 
-        return {
-            "session_id": actual_session_id,
-            "content": response_text,
-            "is_new_session": is_new_session
-        }
+    return {
+        "session_id": actual_session_id,
+        "content": response_text,
+        "is_new_session": is_new_session
+    }
